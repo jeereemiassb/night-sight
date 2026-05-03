@@ -195,57 +195,99 @@ function App() {
 
     try {
       const recognition = await recognizeImage({ imageBase64 });
+      const primaryDisplayName =
+        recognition.displayName ?? recognition.bestMatch?.displayName ?? recognition.topMatches[0]?.displayName;
+      const primaryPersonId =
+        recognition.personId ?? recognition.bestMatch?.personId ?? recognition.topMatches[0]?.personId ?? null;
 
-      if (!recognition.recognized || !recognition.displayName) {
+      if (!primaryDisplayName) {
         setSearchResults([]);
         setSelectedPerson(null);
         setStatusMessage(dictionary.status.noValidFaceMatch);
         return;
       }
 
-      const pending = createPendingPerson({
-        displayName: recognition.displayName,
-        personId: recognition.personId,
-        similarity: recognition.bestMatch?.similarityPercent,
-        photo: imageBase64,
-      });
+      const candidates = recognition.topMatches.length > 0
+        ? recognition.topMatches
+        : recognition.bestMatch
+          ? [recognition.bestMatch]
+          : [
+              {
+                displayName: primaryDisplayName,
+                personId: primaryPersonId,
+                similarity: 0,
+                similarityPercent: recognition.bestMatch?.similarityPercent,
+              },
+            ];
 
-      setSearchResults([pending]);
-      setSelectedPerson(pending);
-      setIsLoadingProfileAfterRecognition(true);
-      setStatusMessage(dictionary.status.recognitionLoading(recognition.displayName));
-
-      let results: PersonRecord[] = [];
-
-      if (recognition.personId) {
-        results = await searchPeople({
-          personId: recognition.personId,
-          includePhoto: false,
-          limit: resolvedUiConfig.maxResults,
-        });
-      } else if (recognition.displayName.trim().length >= resolvedUiConfig.searchMinLength) {
-        results = await searchPeople({
-          query: recognition.displayName,
-          includePhoto: false,
-          limit: resolvedUiConfig.maxResults,
-        });
-      }
-
-      const similarityByPersonId = new Map(
-        recognition.topMatches
-          .filter((candidate) => !!candidate.personId)
-          .map((candidate) => [candidate.personId as string, candidate.similarityPercent]),
+      const pendingCandidates = candidates.map((candidate, index) =>
+        createPendingPerson({
+          displayName: candidate.displayName,
+          personId: candidate.personId,
+          similarity: candidate.similarityPercent,
+          photo: recognition.recognized && index === 0 ? imageBase64 : null,
+        }),
       );
 
-      const enriched = results.map((person) => ({
-        ...person,
-        photo: recognition.personId && person.personId === recognition.personId ? imageBase64 : person.photo,
-        hasPhoto: person.hasPhoto || (recognition.personId ? person.personId === recognition.personId : false),
-        similarity: person.personId ? similarityByPersonId.get(person.personId) : person.similarity,
-      }));
+      setSearchResults(pendingCandidates);
+      setSelectedPerson(pendingCandidates[0] ?? null);
+      setIsLoadingProfileAfterRecognition(true);
+      setStatusMessage(
+        recognition.recognized
+          ? dictionary.status.recognitionLoading(primaryDisplayName)
+          : dictionary.status.similarCandidatesLoading,
+      );
+
+      const candidateDetails = await Promise.all(
+        candidates.slice(0, resolvedUiConfig.maxResults).map(async (candidate, index) => {
+          const fallback = pendingCandidates[index];
+
+          if (!candidate.personId || !fallback) {
+            return fallback;
+          }
+
+          try {
+            const [person] = await searchPeople({
+              personId: candidate.personId,
+              includePhoto: false,
+              limit: 1,
+            });
+
+            if (!person) {
+              return fallback;
+            }
+
+            const isBestMatch = recognition.recognized && candidate.personId === primaryPersonId;
+
+            return {
+              ...mergePersonDetail(fallback, person),
+              photo: isBestMatch ? imageBase64 : person.photo,
+              hasPhoto: person.hasPhoto || isBestMatch,
+              similarity: candidate.similarityPercent,
+            };
+          } catch {
+            return fallback;
+          }
+        }),
+      );
+
+      const seenCandidates = new Set<string>();
+      const enriched = candidateDetails.filter((person): person is PersonRecord => {
+        if (!person) {
+          return false;
+        }
+
+        const key = person.personId ? `id:${person.personId}` : `name:${person.displayName}`;
+        if (seenCandidates.has(key)) {
+          return false;
+        }
+
+        seenCandidates.add(key);
+        return true;
+      });
 
       if (enriched.length === 0) {
-        setStatusMessage(dictionary.status.recognitionNoDetails(recognition.displayName));
+        setStatusMessage(dictionary.status.recognitionNoDetails(primaryDisplayName));
         return;
       }
 
@@ -254,9 +296,17 @@ function App() {
 
       try {
         const detailed = await loadPersonDetail(enriched[0]);
-        setStatusMessage(dictionary.status.profileLoaded(detailed.displayName));
+        setStatusMessage(
+          recognition.recognized
+            ? dictionary.status.similarCandidatesLoaded(detailed.displayName, enriched.length)
+            : dictionary.status.similarCandidatesLowConfidence(enriched.length),
+        );
       } catch {
-        setStatusMessage(dictionary.status.fullProfileFailed);
+        setStatusMessage(
+          recognition.recognized
+            ? dictionary.status.fullProfileFailed
+            : dictionary.status.similarCandidatesLowConfidence(enriched.length),
+        );
       }
     } catch (error) {
       setSearchResults([]);

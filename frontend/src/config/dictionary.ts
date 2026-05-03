@@ -18,11 +18,11 @@ export const dictionary = {
   sections: {
     imageLookup: "Image lookup",
     nameLookup: "Name lookup",
-    matches: "Matches",
+    matches: "Similar matches",
     visibleFields: "Visible fields",
   },
   search: {
-    placeholder: "Search by display name",
+    placeholder: "search --name '*Name*'",
     button: "Search",
     loading: "Searching",
     minLengthMessage: (minLength: number) => `Name search requires at least ${minLength} characters.`,
@@ -43,8 +43,13 @@ export const dictionary = {
     fullProfileFailed: "A result was found, but the full profile could not be loaded.",
     recognitionNoDetails: (name: string) => `Match found: ${name}. No detailed record was found.`,
     recognitionLoading: (name: string) => `Match found: ${name}. Loading profile...`,
+    similarCandidatesLoading: "Loading similar candidates...",
     foundCount: (count: number) => `${count} ${count === 1 ? "match" : "matches"} found.`,
     profileLoaded: (name: string) => `Profile loaded: ${name}`,
+    similarCandidatesLoaded: (name: string, count: number) =>
+      `Profile loaded: ${name}. ${count} similar ${count === 1 ? "candidate" : "candidates"} shown.`,
+    similarCandidatesLowConfidence: (count: number) =>
+      `${count} similar ${count === 1 ? "candidate" : "candidates"} shown. No confident match.`,
   },
   person: {
     loadingProfile: "Loading profile",
