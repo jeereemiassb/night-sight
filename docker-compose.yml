@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: night-sight-backend
+    working_dir: /workspace
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      APP_CONFIG_PATH: ${APP_CONFIG_PATH:-/workspace/config/data_source.toml}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/workspace
+      - insightface_cache:/root/.insightface
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: night-sight-frontend
+    working_dir: /workspace/frontend
+    environment:
+      FRONTEND_PORT: 5173
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_API_URL: http://backend:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/workspace
+      - frontend_node_modules:/workspace/frontend/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  frontend_node_modules:
+  insightface_cache:

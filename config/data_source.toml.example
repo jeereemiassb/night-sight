@@ -1,0 +1,49 @@
+[data_source]
+db_path = "../data/people.db"
+person_id_label = "Person ID"
+photo_mode = "auto"
+search_min_length = 3
+max_results = 25
+people_query = """
+SELECT
+  person_id AS person_id,
+  full_name AS display_name,
+  photo_base64 AS photo_base64,
+  person_id AS internal_id,
+  full_name AS legal_name,
+  status AS status,
+  role AS role
+FROM people
+"""
+
+[artifacts]
+face_index_path = "../artifacts/face_index.faiss"
+face_labels_path = "../artifacts/face_labels.json"
+
+[recognition]
+threshold = 0.35
+top_k = 5
+
+[[fields]]
+key = "internal_id"
+label = "Person ID"
+default_visible = true
+icon = "database"
+
+[[fields]]
+key = "legal_name"
+label = "Full Name"
+default_visible = true
+icon = "user"
+
+[[fields]]
+key = "status"
+label = "Status"
+default_visible = true
+icon = "shield"
+
+[[fields]]
+key = "role"
+label = "Role"
+default_visible = true
+icon = "briefcase"

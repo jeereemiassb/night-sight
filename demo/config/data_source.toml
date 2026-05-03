@@ -1,0 +1,91 @@
+[data_source]
+db_path = "../data/lfw_personas.db"
+person_id_label = "ID"
+photo_mode = "auto"
+search_min_length = 3
+max_results = 25
+people_query = """
+SELECT
+  id AS person_id,
+  name AS display_name,
+  imagen_base64 AS photo_base64,
+  id AS internal_id,
+  name AS legal_name,
+  dni AS dni,
+  direccion AS address,
+  telefono AS phone,
+  correo AS email,
+  fecha_nacimiento AS birth_date,
+  ciudad AS city,
+  empresa AS company,
+  puesto AS role
+FROM personas
+"""
+
+[artifacts]
+face_index_path = "../artifacts/face_index.faiss"
+face_labels_path = "../artifacts/face_labels.json"
+
+[recognition]
+threshold = 0.35
+top_k = 5
+
+[[fields]]
+key = "internal_id"
+label = "Person ID"
+default_visible = true
+icon = "database"
+
+[[fields]]
+key = "legal_name"
+label = "Full Name"
+default_visible = true
+icon = "user"
+
+[[fields]]
+key = "dni"
+label = "DNI"
+default_visible = true
+icon = "badge"
+
+[[fields]]
+key = "address"
+label = "Dirección"
+default_visible = true
+icon = "map-pin"
+
+[[fields]]
+key = "phone"
+label = "Teléfono"
+default_visible = true
+icon = "phone"
+
+[[fields]]
+key = "email"
+label = "Correo"
+default_visible = true
+icon = "mail"
+
+[[fields]]
+key = "birth_date"
+label = "Fecha de nacimiento"
+default_visible = false
+icon = "calendar"
+
+[[fields]]
+key = "city"
+label = "Ciudad"
+default_visible = false
+icon = "map"
+
+[[fields]]
+key = "company"
+label = "Empresa"
+default_visible = false
+icon = "building"
+
+[[fields]]
+key = "role"
+label = "Puesto"
+default_visible = true
+icon = "briefcase"
