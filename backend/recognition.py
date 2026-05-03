@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -30,16 +31,8 @@ class RecognitionEngine:
             raise FileNotFoundError(f"Face labels not found: {labels_path}")
 
         index = faiss.read_index(str(index_path))
-        with labels_path.open("r", encoding="utf-8") as labels_file:
-            raw_labels = json.load(labels_file)
-
-        labels = [
-            RecognitionLabel(
-                person_id=str(item.get("person_id")) if item.get("person_id") is not None else None,
-                display_name=str(item.get("display_name", "")).strip(),
-            )
-            for item in raw_labels
-        ]
+        raw_labels = load_raw_labels(labels_path)
+        labels = parse_recognition_labels(raw_labels)
 
         face_app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
         face_app.prepare(ctx_id=-1, det_size=(640, 640))
@@ -97,3 +90,56 @@ class RecognitionEngine:
             "top_matches": matches,
             "reason": None if recognized else "LOW_SIMILARITY" if best_match else "NO_MATCHES",
         }
+
+
+def load_raw_labels(labels_path: Path) -> Any:
+    if labels_path.suffix.casefold() in {".pkl", ".pickle"}:
+        with labels_path.open("rb") as labels_file:
+            return pickle.load(labels_file)
+
+    try:
+        with labels_path.open("r", encoding="utf-8") as labels_file:
+            return json.load(labels_file)
+    except UnicodeDecodeError:
+        with labels_path.open("rb") as labels_file:
+            return pickle.load(labels_file)
+
+
+def parse_recognition_labels(raw_labels: Any) -> list[RecognitionLabel]:
+    labels: list[RecognitionLabel] = []
+
+    for item in raw_labels:
+        label = parse_recognition_label(item)
+        if label.display_name:
+            labels.append(label)
+
+    return labels
+
+
+def parse_recognition_label(item: Any) -> RecognitionLabel:
+    if isinstance(item, dict):
+        person_id = item.get("person_id", item.get("nip"))
+        display_name = item.get("display_name", item.get("full_name", ""))
+        return RecognitionLabel(
+            person_id=str(person_id).strip() if person_id is not None else None,
+            display_name=str(display_name).strip(),
+        )
+
+    if isinstance(item, str):
+        if "|" in item:
+            person_id, display_name = item.split("|", 1)
+            return RecognitionLabel(
+                person_id=person_id.strip() or None,
+                display_name=display_name.strip(),
+            )
+
+        return RecognitionLabel(person_id=None, display_name=item.strip())
+
+    if isinstance(item, (list, tuple)) and len(item) >= 2:
+        person_id, display_name = item[0], item[1]
+        return RecognitionLabel(
+            person_id=str(person_id).strip() if person_id is not None else None,
+            display_name=str(display_name).strip(),
+        )
+
+    return RecognitionLabel(person_id=None, display_name="")
