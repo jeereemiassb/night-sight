@@ -4,6 +4,8 @@ NightSight is a local stack for searching a people directory by name or by face 
 
 For face search, the index script loads the configured photo field, detects faces with InsightFace, stores normalized embeddings in a FAISS index and writes matching labels. At runtime, the recognition endpoint extracts an embedding from the uploaded image, searches the FAISS index for the closest vectors, applies the configured threshold, and returns the best match plus similar candidates.
 
+<img width="755" height="370" alt="Preview-1" src="https://github.com/user-attachments/assets/49d907fb-28e2-49d5-866b-7a77af76c09d" />
+
 ## Requirements
 
 Bring some people's data to get started. At first you just need a name and a photo, but you can add whatever you have. If you don't have any you can try [Labelled Faces in the Wild](https://www.kaggle.com/datasets/jessicali9530/lfw-dataset). I provide a modified version of it in demo/ with its vectors and labels.
@@ -14,7 +16,7 @@ Edit [config/data_source.toml](./config/data_source.toml) to match your visible 
 
 ## Quickstart
 
-If you want to use the demo data just modify the .env config path to [demo/config/data_source.toml](.demo/config/data_source.toml).
+If you want to use the demo data just modify the docker-compose environment config path to [demo/config/data_source.toml](.demo/config/data_source.toml).
 
 Else:
 
@@ -70,3 +72,5 @@ label = "Department"
 default_visible = true
 icon = "building"
 ```
+
+<img width="755" height="368" alt="Preview-2" src="https://github.com/user-attachments/assets/38bc48f5-6ef2-4d92-a654-39d4e334ba95" />
