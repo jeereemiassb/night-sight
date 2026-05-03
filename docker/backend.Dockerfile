@@ -19,7 +19,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /workspace
 
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
+COPY backend/requirements.txt /tmp/backend-requirements.txt
+RUN pip install --upgrade pip \
+    && pip install -r /tmp/requirements.txt -r /tmp/backend-requirements.txt
 
 COPY docker/start-backend.sh /usr/local/bin/start-backend
 RUN chmod +x /usr/local/bin/start-backend

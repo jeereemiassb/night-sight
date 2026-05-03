@@ -16,19 +16,32 @@ Edit [config/data_source.toml](./config/data_source.toml) to match your visible 
 
 ## Quickstart
 
-If you want to use the demo data just modify the docker-compose environment config path to [demo/config/data_source.toml](.demo/config/data_source.toml).
+If you want to use the demo data just modify the docker-compose environment config path to [demo/config/data_source.toml](./demo/config/data_source.toml).
 
 Else:
 
 1. Put your SQLite file in `data/`.
 2. Edit [config/data_source.toml](./config/data_source.toml).
-3. Extract your embeddings:
+3. Install the local embedding requirements:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Extract your embeddings:
 
 ```bash
 python3 -m scripts.build_face_index
 ```
 
-4. Start the stack:
+This creates the files configured under `[artifacts]`, by default:
+
+- `artifacts/face_index.faiss`
+- `artifacts/face_labels.json`
+
+If you already have generated embeddings, you can skip the extraction step and place your files in those paths, or edit `[artifacts]` in [config/data_source.toml](./config/data_source.toml) to point to your existing index and labels.
+
+5. Start the stack:
 
 ```bash
 docker compose up --build
