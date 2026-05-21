@@ -102,6 +102,18 @@ def _read_photo_path(raw_photo: Any, base_dir: Path | None = None) -> bytes | No
         return None
 
 
+def decode_image_bytes(raw: bytes) -> np.ndarray:
+    if not raw:
+        raise ValueError("Image payload is empty")
+
+    array = np.frombuffer(raw, dtype=np.uint8)
+    image = cv2.imdecode(array, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("Could not decode the image payload")
+
+    return image
+
+
 def decode_image_base64(image_base64: str) -> np.ndarray:
     payload = image_base64.strip()
     if not payload:
@@ -115,12 +127,7 @@ def decode_image_base64(image_base64: str) -> np.ndarray:
     except Exception as exc:
         raise ValueError("image_base64 is invalid") from exc
 
-    array = np.frombuffer(image_bytes, dtype=np.uint8)
-    image = cv2.imdecode(array, cv2.IMREAD_COLOR)
-    if image is None:
-        raise ValueError("Could not decode the image payload")
-
-    return image
+    return decode_image_bytes(image_bytes)
 
 
 def decode_photo_to_image(raw_photo: Any, photo_mode: str = "auto", base_dir: Path | None = None) -> np.ndarray | None:

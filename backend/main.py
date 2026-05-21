@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import Any
 
 import faiss
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from backend.config import get_app_config
 from backend.data_source import SqliteDirectoryRepository
-from backend.photo_utils import decode_image_base64
+from backend.photo_utils import decode_image_base64, decode_image_bytes
 from backend.recognition import RecognitionEngine
 
 
@@ -220,3 +220,69 @@ def get_person_detail(
         raise HTTPException(status_code=404, detail="Person not found")
 
     return {"person": person}
+
+@app.get("/api/oculus/identify")
+def oculus_identify_ping() -> dict[str, str]:
+    return {"status": "All ok, oculus"}
+
+
+@app.post("/api/oculus/identify")
+async def oculus_identify(
+    image: UploadFile = File(...),
+    threshold: float | None = Query(None, ge=-1.0, le=1.0),
+) -> dict[str, Any]:
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="Empty image payload")
+
+    try:
+        img = decode_image_bytes(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    config = get_app_config()
+    repository = get_repository()
+
+    try:
+        engine = get_recognition_engine()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not initialize recognition engine: {exc}") from exc
+
+    effective_threshold = threshold if threshold is not None else config.recognition.threshold
+    result = engine.identify(image=img, threshold=effective_threshold, top_k=1)
+    best = result.get("best_match")
+    confidence = float(best["similarity"]) if best else 0.0
+
+    response: dict[str, Any] = {
+        "name": (best["display_name"] or "") if (best and result["recognized"]) else "",
+        "confidence": confidence,
+        "recognized": bool(result["recognized"]),
+        "reason": result.get("reason"),
+        "info_text": "",
+    }
+
+    if not result["recognized"] or best is None or not best.get("person_id"):
+        return response
+
+    if not config.data_source.db_path.exists():
+        return response
+
+    try:
+        person = repository.fetch_person_by_id(best["person_id"], include_photo=False)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Directory query failed: {exc}") from exc
+
+    if person is None:
+        return response
+
+    person_fields = person.get("fields") or {}
+    lines: list[str] = []
+    for field in config.fields:
+        value = person_fields.get(field.key)
+        if value:
+            lines.append(f"{field.label}: {value}")
+    response["info_text"] = "\n".join(lines)
+
+    return response
